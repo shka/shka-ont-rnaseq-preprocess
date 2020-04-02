@@ -1,0 +1,172 @@
+#+TITLE: ONT RNAseq preprocess report
+#+OPTIONS: num:nil
+#+EXPORT_FILE_NAME: report.html
+#+PROPERTY: header-args:R :session R :exports both
+
+* Configurations
+
+#+INCLUDE: "../config.yml" src yaml
+
+* Workflow
+
+#+CAPTION: The preproecss workflow. Run src_shell[:exports code]{snakemake --filegraph all | dot -T svg > out/Snakefile.svg} if empty.
+[[file:Snakefile.svg]]
+
+* Results
+
+** Preparation
+
+#+begin_src R :exports code
+  library(Rsamtools)
+#+end_src
+
+** Alignments and the qualities
+
+#+NAME: fig:read_mapped
+#+begin_src R :results graphics file :file read_mapped.png
+  reads.all.length <-
+    table(width(scanBam('raw.bam',
+                        param = ScanBamParam(what = c('seq')))[[1]][[1]]))
+
+  reads.mapq0.length <-
+    table(width(scanBam('raw.bam',
+                        param = ScanBamParam(
+                          what = c('seq'), mapqFilter = 0,
+                          flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]]))
+
+  reads.mapq7.length <-
+    table(width(scanBam('raw.bam',
+                        param = ScanBamParam(
+                          what = c('seq'), mapqFilter = 7, 
+                          flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]]))
+
+  reads.mapq10.length <-
+    table(width(scanBam('raw.bam',
+                        param = ScanBamParam(
+                          what = c('seq'), mapqFilter = 10,
+                          flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]]))
+
+  tmp.slices <- c(sum(reads.all.length) - sum(reads.mapq0.length),
+              sum(reads.mapq0.length) - sum(reads.mapq7.length),
+              sum(reads.mapq7.length) - sum(reads.mapq10.length),
+              sum(reads.mapq10.length))
+  tmp.labels <- paste(c('Unmapped',
+                        expression('Q0~7'),
+                        expression('Q7~10'),
+                        expression('Q10~')) , tmp.slices, sep="\n")
+  pie(tmp.slices, labels = tmp.labels, col=grey.colors(4, start = .9, end = .3))
+#+end_src
+#+CAPTION: The proportion of the reads by the mapping qualities.
+#+LABEL: fig:read_mapped
+#+RESULTS: fig:read_mapped
+
+** Alignments and the lengths
+
+#+NAME: fig:read_length_log
+#+begin_src R :results graphics file :file read_length_log.png
+  plot(c(0, 0), xlab = 'Length (nt; log)', ylab = 'Reads', axes = F, log='x',
+       xlim=c(200/4/4/2, 200*4*4*4*4*4), ylim = c(0, max(reads.all.length)),
+       pch='')
+  tmp <- c(25, 200, 500, 1000, 2000, 4000, 6000)
+  axis(1, at = tmp, labels = tmp)
+  abline(h = axis(2), lty = 3, col = 'grey')
+  abline(v = 200/4/4/4*(4^seq(1, 10)), lty = 3, col = 'grey')
+  abline(v = c(1900, 5000))
+  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.5, 0))
+  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.5, 0))
+  tmp.cols <- grey.colors(4, start = .9, end = .3)
+  lines(x = names(reads.all.length), y = reads.all.length, col = tmp.cols[1])
+  lines(x = names(reads.mapq0.length), y = reads.mapq0.length, col = tmp.cols[2])
+  lines(x = names(reads.mapq7.length), y = reads.mapq7.length, col = tmp.cols[3])
+  lines(x = names(reads.mapq10.length), y = reads.mapq10.length, col = tmp.cols[4])
+  legend('topright', lty=1, col=tmp.cols, bg = 'white',
+         legend=paste(c('All', 'Q≥0', 'Q≥7', 'Q≥10'),
+                      c(sum(reads.all.length),
+                        sum(reads.mapq0.length),
+                        sum(reads.mapq7.length),
+                        sum(reads.mapq10.length)), sep='; '))
+#+end_src
+#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; log-scale) and the mapping qualities.
+#+LABEL: fig:read_length_log
+#+RESULTS: fig:read_length_log
+
+#+NAME: fig:read_length_linear
+#+begin_src R :results graphics file :file read_length_linear.png
+  plot(c(0, 0), xlab = 'Length (nt; linear)', ylab = 'Reads', axes = F, log='',
+       xlim=c(1, 5000), ylim = c(0, max(reads.all.length)), pch='')
+  axis(1, at = tmp, labels = tmp)
+  abline(h = axis(2), lty = 3, col = 'grey')
+  abline(v = 200/4/4/4*(4^seq(1, 10)), lty = 3, col = 'grey')
+  abline(v = c(1900, 5000))
+  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.5, 0))
+  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.5, 0))
+  tmp.cols <- grey.colors(4, start = .9, end = .3)
+  lines(x = names(reads.all.length), y = reads.all.length, col = tmp.cols[1])
+  lines(x = names(reads.mapq0.length), y = reads.mapq0.length, col = tmp.cols[2])
+  lines(x = names(reads.mapq7.length), y = reads.mapq7.length, col = tmp.cols[3])
+  lines(x = names(reads.mapq10.length), y = reads.mapq10.length, col = tmp.cols[4])
+  tmp <- c(25, 200, 500, 1000, 2000, 4000)
+  legend(3000, max(reads.all.length), lty=1, col=tmp.cols, bg = 'white',
+         legend=paste(c('All', 'Q≥0', 'Q≥7', 'Q≥10'),
+                      c(sum(reads.all.length),
+                        sum(reads.mapq0.length),
+                        sum(reads.mapq7.length),
+                        sum(reads.mapq10.length)), sep='; '))
+#+end_src
+#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; linear-scale) and the mapping qualities.
+#+LABEL: fig:read_length_linear
+#+RESULTS: fig:read_length_linear
+
+** Alignments and the chromosomes
+
+#+NAME: fig:read_chr
+#+begin_src R :results graphics file :file read_chr.png
+  tmp.reads <-
+    table(scanBam('raw.bam',
+                  param = ScanBamParam(
+                    what = c('rname'), mapqFilter = 0,
+                    flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]])
+  tmp.chromosomes <- ifelse(substr(names(tmp.reads), 1, 3) == 'chr', names(tmp.reads), 'spikein')
+  reads.map0.chromosome <- tapply(tmp.reads, tmp.chromosomes, sum)[unique(tmp.chromosomes)]
+
+  tmp.reads <-
+    table(scanBam('raw.bam',
+                  param = ScanBamParam(
+                    what = c('rname'), mapqFilter = 7,
+                    flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]])
+  reads.map7.chromosome <- tapply(tmp.reads, tmp.chromosomes, sum)[unique(tmp.chromosomes)]
+
+  tmp.reads <-
+    table(scanBam('raw.bam',
+                  param = ScanBamParam(
+                    what = c('rname'), mapqFilter = 10,
+                    flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]])
+  reads.map10.chromosome <- tapply(tmp.reads, tmp.chromosomes, sum)[unique(tmp.chromosomes)]
+
+  tmp <- t(as.matrix(data.frame(
+    'Q0~7' = reads.map0.chromosome-reads.map7.chromosome,
+    'Q7~10' = reads.map7.chromosome-reads.map10.chromosome,
+    'Q10~' = reads.map10.chromosome,
+    check.names=F)))
+  tmp.cols <- grey.colors(3, start = .8, end = .4)
+  par(las=1)
+  barplot(tmp, horiz = T, xlab = 'Reads', col = tmp.cols)
+  legend('topright', legend = rownames(tmp), fill = tmp.cols)
+  dev.off()
+#+end_src
+#+CAPTION: The number of the reads (x-axis) by the origins, either the chromosomes or the spikein (y-axis).
+#+LABEL: fig:read_chr
+#+RESULT: fig:read_chr
+
+** Accuracy estimation
+
+This =gffcompare= report is related to the "accuracy" of the sequenced reads when compared to reference annotation data.
+
+#+INCLUDE: "gffcompare.stats" example :lines "6-"
+
+* Session information
+
+#+begin_src R :results output
+  sessionInfo()
+#+end_src
+

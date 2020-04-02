@@ -1,0 +1,36 @@
+---
+
+general:
+  threads: 8
+
+reference:
+  genome:
+    id: hg38
+    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/GRCh38.primary_assembly.genome.fa.gz
+  annotation:
+    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/gencode.v33.annotation.gtf.gz
+  spikein:
+    commands: 'esearch -db nucleotide -query NM_001179305.1 | efetch -format fasta | sed ''s/^\(>[^ ]\+\) .*$/\1/'' | sed -z ''s/\([ACGT]\)[\n\r]\([ACGT]\)/\1\2/g'' | fold -w 60 | gzip -c'
+
+input:
+  directory: ~/fastq
+
+minimap2:
+  index_options: '-k 14 -I 16G'
+  mapping_options: '-uf'
+  filtering_options: '-q 7 -F 4'
+
+pinfish:
+  exon_boundary_tolerance: 10          # 10
+  first_exon_boundary_tolerance: 5000  # 5000
+  minimum_cluster_size: 10             # 10
+  minimum_isoform_percentage: 1.0      # 1.0
+  terminal_exon_boundary_tolerance: 30 # 30
+
+ucsc:
+  hub: myHub
+  shortLabel: My Hub
+  longLabel: My Hub by shka-ont-rnaseq-preprocess
+  email: add.yourr@email.address
+  descriptionUrl: readme.html
+

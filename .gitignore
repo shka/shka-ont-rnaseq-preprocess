@@ -1,0 +1,6 @@
+*~
+tmp
+.DS_Store
+.Rhistory
+._*
+.snakemake

@@ -1,0 +1,25 @@
+channels:
+  - bioconda
+  - conda-forge
+  - iuc
+  - sagrudd
+dependencies:
+  - biopython
+  - emacs
+  - entrez-direct
+  - gffcompare
+  - gffread
+  - graphviz
+  - htslib
+  - libiconv     # Undescribed dependency of r-base
+  - minimap2
+  - open-fonts   # Undescribed dependency of graphviz & r-base
+  - pigz
+  - pinfish
+  - racon
+  - r-base
+  - samtools
+  - snakemake-minimal
+  - ucsc-bedtobigbed
+  - ucsc-genepredtobiggenepred
+  - ucsc-gtftogenepred

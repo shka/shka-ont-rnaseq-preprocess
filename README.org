@@ -1,0 +1,21 @@
+* shka-ont-rnaseq-preprocess
+
+An optimized preprocess pipeline for Oxford Nanopore RNAseq. A
+detailed document will come soon.
+
+* Getting Started
+
+The instruction below will install various packages to your base environment. Therefore, installation to a vanilla VM or an conda environment is strongly recommended.
+
+#+begin_src shell :exec never
+  git checkout https://github.com/shka/shka-ont-rnaseq-preprocess.git test
+  cd test
+  bin/install_miniconda.sh
+  bin/install.sh
+  # edit config.yaml
+  snakemake --cores=8 all
+#+end_src
+
+* License
+
+See ./LICENSE
