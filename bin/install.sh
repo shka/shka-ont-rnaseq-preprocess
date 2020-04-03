@@ -1,5 +1,5 @@
 #!/bin/bash -eu
 
-conda install --file environment.yaml
+conda env update --file environment.yml
 R CMD BATCH bin/install.R
 emacs -l bin/install.el --batch --kill
