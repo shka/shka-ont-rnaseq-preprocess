@@ -1,5 +1,6 @@
 #+TITLE: ONT RNAseq preprocess report
-#+OPTIONS: num:nil
+#+CREATOR: <a href="https://github.com/shka/shka-ont-rnaseq-preprocess">shka-ont-rnaseq-preprocess</a>
+#+OPTIONS: author:nil creator:t num:nil
 #+EXPORT_FILE_NAME: report.html
 #+PROPERTY: header-args:R :session R :exports both
 
@@ -71,9 +72,10 @@
   axis(1, at = tmp, labels = tmp)
   abline(h = axis(2), lty = 3, col = 'grey')
   abline(v = 200/4/4/4*(4^seq(1, 10)), lty = 3, col = 'grey')
-  abline(v = c(1900, 5000))
-  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.5, 0))
-  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.5, 0))
+  abline(v = c(1314, 1900, 5000))
+  text(1314, max(reads.all.length), 'ENO2', srt=90, adj = c(.75, 0))
+  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.75, 0))
+  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.75, 0))
   tmp.cols <- grey.colors(4, start = .9, end = .3)
   lines(x = names(reads.all.length), y = reads.all.length, col = tmp.cols[1])
   lines(x = names(reads.mapq0.length), y = reads.mapq0.length, col = tmp.cols[2])
@@ -86,7 +88,7 @@
                         sum(reads.mapq7.length),
                         sum(reads.mapq10.length)), sep='; '))
 #+end_src
-#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; log-scale) and the mapping qualities.
+#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; log-scale) and the mapping qualities. ENO2 is at the CDS length of yeast Enolase II gene, which is the standard spike-in RNA in the direct RNAseq kit SQK-RNA002.
 #+LABEL: fig:read_length_log
 #+RESULTS: fig:read_length_log
 
@@ -97,9 +99,10 @@
   axis(1, at = tmp, labels = tmp)
   abline(h = axis(2), lty = 3, col = 'grey')
   abline(v = 200/4/4/4*(4^seq(1, 10)), lty = 3, col = 'grey')
-  abline(v = c(1900, 5000))
-  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.5, 0))
-  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.5, 0))
+  abline(v = c(1314, 1900, 5000))
+  text(1314, max(reads.all.length), 'ENO2', srt=90, adj = c(.75, 0))
+  text(1900, max(reads.all.length), '18S', srt=90, adj = c(.75, 0))
+  text(5000, max(reads.all.length), '28S', srt=90, adj = c(.75, 0))
   tmp.cols <- grey.colors(4, start = .9, end = .3)
   lines(x = names(reads.all.length), y = reads.all.length, col = tmp.cols[1])
   lines(x = names(reads.mapq0.length), y = reads.mapq0.length, col = tmp.cols[2])
@@ -113,7 +116,7 @@
                         sum(reads.mapq7.length),
                         sum(reads.mapq10.length)), sep='; '))
 #+end_src
-#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; linear-scale) and the mapping qualities.
+#+CAPTION: The number of the reads (y-axis) by the lengths (x-axis; linear-scale) and the mapping qualities. ENO2 is at the CDS length of yeast Enolase II gene, which is the standard spike-in RNA in the direct RNAseq kit SQK-RNA002.
 #+LABEL: fig:read_length_linear
 #+RESULTS: fig:read_length_linear
 
