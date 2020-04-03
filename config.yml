@@ -4,11 +4,13 @@ general:
   threads: 8
 
 reference:
+  annotation:
+    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/gencode.v33.annotation.gtf.gz
   genome:
     id: hg38
     url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/GRCh38.primary_assembly.genome.fa.gz
-  annotation:
-    url: ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/gencode.v33.annotation.gtf.gz
+  ribosome:
+    commands: 'esearch -db nucleotide -query U13369.1 | efetch -format fasta | sed ''s/^\(>[^ ]\+\) .*$/\1/'' | sed -z ''s/\([ACGT]\)[\n\r]\([ACGT]\)/\1\2/g'' | fold -w 60 | gzip -c'
   spikein:
     commands: 'esearch -db nucleotide -query NM_001179305.1 | efetch -format fasta | sed ''s/^\(>[^ ]\+\) .*$/\1/'' | sed -z ''s/\([ACGT]\)[\n\r]\([ACGT]\)/\1\2/g'' | fold -w 60 | gzip -c'
 
