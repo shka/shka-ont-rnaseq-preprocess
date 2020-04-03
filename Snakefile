@@ -1,4 +1,5 @@
 import gzip
+import os
 import re
 import subprocess
 
@@ -89,9 +90,10 @@ rule BuildMinimap2Index:
 ##
 
 tmp = []
-for file in os.listdir(config['input']['directory']):
+tmp_dir = os.path.expanduser(config['input']['directory'])
+for file in os.listdir(tmp_dir):
     if re.search('.+\.(fastq|fq)\.gz', file):
-        tmp.append(config['input']['directory']+'/'+file)
+        tmp.append(tmp_dir+'/'+file)
 config['input']['files'] = tmp
 
 rule PrepareRawSequences:
@@ -270,6 +272,7 @@ rule report:
     input:
         bam = rules.Minimap2RawSequences.output,
         bin = 'bin/report.el',
+        stats = rules.GFFCompare.output.stats,
         template = 'out/report.org'
     output: 'out/report.html'
     shell: 'emacs -l {input.bin} --batch --kill'
@@ -278,12 +281,13 @@ rule report:
 
 rule BAM4Hub:
     input:
-        bam = 'out/{prefix}.bam',
+        bai = 'out/{prefix}.bam.bai',
         fai = rules.CheckReferenceSequenceLengths.output
     output: hub_root + '/{prefix}.bam'
     threads: threads
     shell: """
-samtools view -@ {threads} -b {input.bam} \
+samtools view -@ {threads} -b \
+    `dirname {input.bai}`/`basename {input.bai} .bai` \
     `cut -f 1 {input.fai} | grep chr | paste -s -d ' '` \ > {output}
 """
 
