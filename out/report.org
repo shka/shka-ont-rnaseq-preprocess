@@ -121,12 +121,24 @@
 
 #+NAME: fig:read_chr
 #+begin_src R :results graphics file :file read_chr.png
+  tmp.genome <- system("unpigz -c ../ref/genome.fa.gz | grep '^>' | sed 's/^>\\([^ ]\\+\\).*$/\\1/'", intern=T)
+  tmp.ribosome <- system("unpigz -c ../ref/ribosome.fa.gz | grep '^>' | sed 's/^>\\([^ ]\\+\\).*$/\\1/'", intern=T)
+  tmp.spikein <- system("unpigz -c ../ref/spikein.fa.gz | grep '^>' | sed 's/^>\\([^ ]\\+\\).*$/\\1/'", intern=T)
+
+  tmp.map <- list()
+  for(tmp.key in tmp.genome)
+    tmp.map[tmp.key] = tmp.key
+  for(tmp.key in tmp.ribosome)
+    tmp.map[tmp.key] = 'ribo'
+  for(tmp.key in tmp.spikein)
+    tmp.map[tmp.key] = 'spikein'
+
   tmp.reads <-
     table(scanBam('raw.bam',
                   param = ScanBamParam(
                     what = c('rname'), mapqFilter = 0,
                     flag = scanBamFlag(isUnmappedQuery = F)))[[1]][[1]])
-  tmp.chromosomes <- ifelse(substr(names(tmp.reads), 1, 3) == 'chr', names(tmp.reads), 'spikein')
+  tmp.chromosomes <- unlist(tmp.map[names(tmp.reads)])
   reads.map0.chromosome <- tapply(tmp.reads, tmp.chromosomes, sum)[unique(tmp.chromosomes)]
 
   tmp.reads <-
@@ -154,9 +166,9 @@
   legend('topright', legend = rownames(tmp), fill = tmp.cols)
   dev.off()
 #+end_src
-#+CAPTION: The number of the reads (x-axis) by the origins, either the chromosomes or the spikein (y-axis).
+#+CAPTION: The number of the reads (x-axis) by the origins, either the chromosomes, the ribosomal DNA-unit/RNAs or the spikein (y-axis).
 #+LABEL: fig:read_chr
-#+RESULT: fig:read_chr
+#+RESULTS: fig:read_chr
 
 ** Accuracy estimation
 

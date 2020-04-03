@@ -12,6 +12,13 @@ threads = config['general']['threads']
 
 ##
 
+rule PrepareRibosomeSequences:
+    output: 'ref/ribosome.fa.gz'
+    params: config['reference']['ribosome']['commands']
+    shell: '{params} > {output}'
+
+##
+
 rule PrepareSpikeInSequences:
     output: 'ref/spikein.fa.gz'
     params: config['reference']['spikein']['commands']
@@ -65,6 +72,7 @@ rule PrepareAnnotation:
 rule PrepareReferenceSequences:
     input:
         rules.PrepareGenomeSequences.output,
+        rules.PrepareRibosomeSequences.output,
         rules.PrepareSpikeInSequences.output
     output: 'ref/ref.fa.gz'
     threads: threads
@@ -272,6 +280,9 @@ rule report:
     input:
         bam = rules.Minimap2RawSequences.output,
         bin = 'bin/report.el',
+        genome = rules.PrepareGenomeSequences.output,
+        ribosome = rules.PrepareRibosomeSequences.output,
+        spikein = rules.PrepareSpikeInSequences.output,
         stats = rules.GFFCompare.output.stats,
         template = 'out/report.org'
     output: 'out/report.html'
