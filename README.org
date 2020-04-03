@@ -5,15 +5,20 @@ detailed document will come soon.
 
 * Getting Started
 
-The instruction below will install various packages to your base environment. Therefore, installation to a vanilla VM or an conda environment is strongly recommended.
+Required software packages for this pipeline is managed by Conda. See [[https://docs.conda.io/en/latest/miniconda.html][the instruction]] to install Conda. Also a script =bin/install_miniconda.sh= in this package would be helpful for *nix users. However, the installation will change your base envronment. If you don't want to change it, the pipeline should be installed in a virturl environment (ex. by VirtualBox, Docker or OpenStack). After the installation of Conda, when you proceed a preprocess named =test=,
 
 #+begin_src shell :exec never
+  conda create --name test
+  conda activate test
   git checkout https://github.com/shka/shka-ont-rnaseq-preprocess.git test
   cd test
-  bin/install_miniconda.sh
   bin/install.sh
-  # edit config.yaml
-  snakemake --cores=8 all
+#+end_src
+
+Edit =config.yml= for your preprocess, then run the preprocess pipeline as below. Change the number for =--cores= according to your environment.
+
+#+begin_src shell :exec never
+  snakemake --cores=6 all
 #+end_src
 
 * License
