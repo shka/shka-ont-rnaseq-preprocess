@@ -166,6 +166,10 @@ This =gffcompare= report is related to the "accuracy" of the sequenced reads whe
 
 * Session information
 
+#+begin_src shell :exports both :results output
+  git log -n 1
+#+end_src
+
 #+begin_src R :results output
   sessionInfo()
 #+end_src
