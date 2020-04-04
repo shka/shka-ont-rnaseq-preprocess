@@ -80,7 +80,7 @@ rule PrepareReferenceSequences:
 
 ##
 
-rule CheckReferenceSequenceLengths:
+checkpoint CheckReferenceSequenceLengths:
     input: rules.PrepareReferenceSequences.output
     output: 'ref/ref.fa.gz.fai'
     shell: 'samtools faidx {input}'
@@ -155,32 +155,69 @@ rule IndexBAM:
 ##
 
 rule BAM2GFF:
-    input: '{prefix}.bam'
-    output: '{prefix}.gff.gz'
+    input: 'out/{prefix}.bam'
+    output: 'out/{prefix}.gff.gz'
     threads: threads
     shell: 'spliced_bam2gff -t {threads} -s -M {input} | pigz -c > {output}'
 
 ##
 
-rule ClusterGFF:
+STRAND = { 'fwd': '+', 'rev': '-' }
+wildcard_constraints:
+    str = '|'.join(list(STRAND.keys()))
+
+rule PrepareClusterGFF:
     input: 'out/filtered.gff.gz'
+    output: 'tmp/filtered.{chr}_{str}.gff.gz'
+    params: lambda wildcards: STRAND[wildcards.str]
+    shell: """
+unpigz -c {input} \
+| grep -E '^(#|{wildcards.chr}\t)' \
+| grep -E '(^#|\t\\{params}\t)' \
+| pigz -c > tmp/filtered.{wildcards.chr}_{wildcards.str}.gff.gz
+"""
+
+##
+
+rule ClusterGFF:
+    input: rules.PrepareClusterGFF.output
     output:
-        gff = 'out/filtered.clustered.gff.gz',
-        tsv = 'out/cluster_memberships.tsv.gz',
-        fifo = temp('tmp/PinfishClusterGFF')
+        gff = 'tmp/filtered.{chr}_{str}.clustered.gff.gz',
+        tsv = 'tmp/cluster_memberships.{chr}_{str}.tsv.gz',
+        fifo = temp('tmp/ClusterGFF_{chr}_{str}.fifo')
     params:
         c = config['pinfish']['minimum_cluster_size'],
         d = config['pinfish']['exon_boundary_tolerance'],
         e = config['pinfish']['terminal_exon_boundary_tolerance'],
         p = config['pinfish']['minimum_isoform_percentage']
-    threads: threads
     shell: """
-mkfifo {output.fifo} && pigz -c {output.fifo} > {output.tsv} &
-unpigz -c {input} \
-| cluster_gff -t {threads} \
+mkfifo {output.fifo} 
+if [ `gunzip -c {input} | head | wc -l` -eq 1 ]; then
+    cp {input} {output.gff}
+    echo -e "Read\\tCluster" | gzip -c > {output.tsv}
+else
+    gzip -c {output.fifo} > {output.tsv} &
+    gunzip -c {input} \
+| cluster_gff \
     -c {params.c} -d {params.d} -e {params.e} -p {params.p} -a {output.fifo} \
-| pigz -c > {output.gff}
-wait
+| gzip -c > {output.gff}
+    wait
+fi
+
+"""
+
+##
+
+def _JoinClusterGFF_gffs(wildcards):
+    chrs = subprocess.check_output('cut -f 1 ' + checkpoints.CheckReferenceSequenceLengths.get(**wildcards).output[0], shell = True).decode().strip().split()
+    return expand(rules.ClusterGFF.output.gff,
+                  chr = chrs, str = ['fwd', 'rev'])
+
+rule JoinClusterGFF_gff:
+    input: _JoinClusterGFF_gffs
+    output: 'out/filtered.clustered.gff.gz'
+    shell: """
+unpigz -c {input} | sed -e '2,$s:^#.*$::' | sed '/^$/d' | pigz -c > {output}
 """
 
 ##
@@ -196,8 +233,8 @@ rule CollapsePartials:
         f = config['pinfish']['first_exon_boundary_tolerance']
     threads: threads
     shell: """
-unpigz -c {input} > {output.tmp} \
-&& collapse_partials -t {threads} \
+unpigz -c {input} > {output.tmp}
+collapse_partials -t {threads} \
     -d {params.d} -e {params.e} -f {params.f} {output.tmp} \
 | pigz -c > {output.gff}
 """
@@ -209,26 +246,37 @@ rule PolishClusters:
         tsv = rules.ClusterGFF.output.tsv,
         bam = rules.FilterAlignments.output
     output:
-        fasta = 'out/filtered.clustered.polished.fasta.gz',
-        fifo1 = temp('tmp/polish_clusters1'),
-        fifo2 = temp('tmp/polish_clusters2')
+        fasta = 'tmp/filtered.clustered.polished.{chr}_{str}.fasta.gz',
+        fifo1 = temp('tmp/polish_clusters.{chr}_{str}.1'),
+        fifo2 = temp('tmp/polish_clusters.{chr}_{str}.2')
     params:
         c = config['pinfish']['minimum_cluster_size']
-    threads: threads
     shell: """
-mkfifo {output.fifo1} && pigz -c {output.fifo1} > {output.fasta} &
-mkfifo {output.fifo2} && unpigz -c {input.tsv} > {output.fifo2} &
-polish_clusters -t {threads} \
-    -c {params.c} -a {output.fifo2} -o {output.fifo1} {input.bam}
+mkfifo {output.fifo1} {output.fifo2}
+unpigz -c {input.tsv} > {output.fifo1} &
+pigz -c {output.fifo2} > {output.fasta} &
+polish_clusters -c {params.c} -a {output.fifo1} -o {output.fifo2} {input.bam} > /dev/null
 wait
 """
+
+##
+
+def _JoinPolishClusters_fastas(wildcards):
+    chrs = subprocess.check_output('cut -f 1 ' + checkpoints.CheckReferenceSequenceLengths.get(**wildcards).output[0], shell = True).decode().strip().split()
+    return expand(rules.PolishClusters.output.fasta,
+                  chr = chrs, str = ['fwd', 'rev'])
+
+rule JoinPolishClusters_fasta:
+    input: _JoinPolishClusters_fastas
+    output: 'out/filtered.clustered.polished.fasta.gz'
+    shell: 'unpigz -c {input} | pigz -c > {output}'
 
 ##
 
 rule Minimap2PolishedClusters:
     input:
         index = rules.BuildMinimap2Index.output,
-        query = rules.PolishClusters.output.fasta
+        query = rules.JoinPolishClusters_fasta.output
     output: 'out/filtered.clustered.polished.bam'
     params: config['minimap2']['mapping_options']
     threads: threads
@@ -386,6 +434,7 @@ rule Hub:
 
 rule all:
     input:
+        rules.CheckReferenceSequenceLengths.output,
         'out/filtered.clustered.collapsed.gff.gz',
         'out/filtered.clustered.polished.collapsed.fasta.gz',
         rules.GFFCompare.output.stats,
