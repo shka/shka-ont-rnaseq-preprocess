@@ -162,14 +162,14 @@ rule BAM2GFF:
 
 ##
 
-STRAND = { 'fwd': '+', 'rev': '-' }
+STRAND2SYMBOL = { 'fwd': '+', 'rev': '-' }
 wildcard_constraints:
-    str = '|'.join(list(STRAND.keys()))
+    str = '|'.join(list(STRAND2SYMBOL.keys()))
 
 rule PrepareClusterGFF:
     input: 'out/filtered.gff.gz'
     output: 'tmp/filtered.{chr}_{str}.gff.gz'
-    params: lambda wildcards: STRAND[wildcards.str]
+    params: lambda wildcards: STRAND2SYMBOL[wildcards.str]
     shell: """
 unpigz -c {input} \
 | grep -E '^(#|{wildcards.chr}\t)' \
@@ -183,25 +183,24 @@ rule ClusterGFF:
     input: rules.PrepareClusterGFF.output
     output:
         gff = 'tmp/filtered.{chr}_{str}.clustered.gff.gz',
-        tsv = 'tmp/cluster_memberships.{chr}_{str}.tsv.gz',
-        fifo = temp('tmp/ClusterGFF_{chr}_{str}.fifo')
+        tsv = 'tmp/cluster_memberships.{chr}_{str}.tsv.gz'
     params:
         c = config['pinfish']['minimum_cluster_size'],
         d = config['pinfish']['exon_boundary_tolerance'],
         e = config['pinfish']['terminal_exon_boundary_tolerance'],
         p = config['pinfish']['minimum_isoform_percentage']
+    threads: 1
     shell: """
-mkfifo {output.fifo} 
 if [ `gunzip -c {input} | head | wc -l` -eq 1 ]; then
     cp {input} {output.gff}
     echo -e "Read\\tCluster" | gzip -c > {output.tsv}
 else
-    gzip -c {output.fifo} > {output.tsv} &
+    tsv=tmp/`basename {output.tsv} .gz`
     gunzip -c {input} \
-| cluster_gff \
-    -c {params.c} -d {params.d} -e {params.e} -p {params.p} -a {output.fifo} \
+| cluster_gff -t {threads} \
+    -c {params.c} -d {params.d} -e {params.e} -p {params.p} -a $tsv \
 | gzip -c > {output.gff}
-    wait
+    pigz $tsv
 fi
 
 """
@@ -241,22 +240,29 @@ collapse_partials -t {threads} \
 
 ##
 
+STRAND2FILTER = { 'fwd': '-F 16', 'rev': '-f 16' }
+
 rule PolishClusters:
     input:
         tsv = rules.ClusterGFF.output.tsv,
-        bam = rules.FilterAlignments.output
+        bai = 'out/filtered.bam.bai'
     output:
+        bam = temp('tmp/filtered.{chr}_{str}.bam'),
         fasta = 'tmp/filtered.clustered.polished.{chr}_{str}.fasta.gz',
-        fifo1 = temp('tmp/polish_clusters.{chr}_{str}.1'),
-        fifo2 = temp('tmp/polish_clusters.{chr}_{str}.2')
+        tsv = temp('tmp/polish_clusters.{chr}_{str}.tsv')
     params:
-        c = config['pinfish']['minimum_cluster_size']
+        c = config['pinfish']['minimum_cluster_size'],
+        filter = lambda wildcards: STRAND2FILTER[wildcards.str]
+    threads: 1
     shell: """
-mkfifo {output.fifo1} {output.fifo2}
-unpigz -c {input.tsv} > {output.fifo1} &
-pigz -c {output.fifo2} > {output.fasta} &
-polish_clusters -c {params.c} -a {output.fifo1} -o {output.fifo2} {input.bam} > /dev/null
-wait
+unpigz -c {input.tsv} > {output.tsv}
+samtools view -1 {params.filter} \
+    `dirname {input.bai}`/`basename {input.bai} .bai` {wildcards.chr}: \
+    > {output.bam}
+fasta=tmp/`basename {output.fasta} .gz`
+polish_clusters -t {threads} \
+    -c {params.c} -a {output.tsv} -o $fasta {output.bam} 2> /dev/null
+pigz $fasta
 """
 
 ##
